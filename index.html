@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tu Vendedor - Catálogo</title>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #e63946;
+      --primary-dark: #c1121f;
+      --bg: #fdf0d5;
+      --text: #1d3557;
+      --card: #ffffff;
+      --accent: #f4a261;
+      --success: #2a9d8f;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .header {
+      background: var(--primary); color: white; padding: 1rem; text-align: center;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header h1 { font-size: 1.5rem; }
+    .header-info { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.9rem; }
+    .header-info a { color: white; text-decoration: underline; }
+
+    /* Carrusel */
+    .carousel-container {
+      position: relative; max-width: 800px; margin: 1rem auto; overflow: hidden;
+      border-radius: 12px; box-shadow: var(--shadow);
+    }
+    .carousel-slide { display: none; width: 100%; height: 350px; object-fit: cover; }
+    .carousel-slide.active { display: block; }
+    .carousel-dots { text-align: center; padding: 0.5rem; }
+    .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #ccc; margin: 0 4px; cursor: pointer; }
+    .dot.active { background: var(--primary); }
+    .no-photo { height: 250px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #666; }
+
+    .container { max-width: 900px; margin: 1rem auto; padding: 0 1rem; }
+    .section-title { font-size: 1.3rem; margin: 1.5rem 0 1rem; color: var(--primary-dark); border-bottom: 2px solid var(--accent); padding-bottom: 0.3rem; }
+
+    /* Productos */
+    .producto { background: var(--card); border-radius: 12px; margin-bottom: 1rem; padding: 1rem; box-shadow: var(--shadow); }
+    .producto h3 { color: var(--primary-dark); margin-bottom: 0.3rem; font-size: 1.1rem; }
+    .producto p { font-size: 0.9rem; color: #555; margin-bottom: 0.5rem; }
+    .variantes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem; margin-top: 0.5rem; }
+    .variante-card {
+      background: var(--bg); border: 1px solid #ddd; border-radius: 8px; padding: 0.8rem;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .variante-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; margin-bottom: 0.5rem; background: #eee; }
+    .variante-card .precio { font-size: 1.2rem; font-weight: bold; color: var(--primary); margin: 0.3rem 0; }
+    .variante-card .stock { font-size: 0.8rem; color: #888; margin-bottom: 0.5rem; }
+    .variante-card button {
+      width: 100%; padding: 0.5rem; border: none; border-radius: 6px;
+      background: var(--primary); color: white; font-weight: bold; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .variante-card button:hover { background: var(--primary-dark); }
+    .variante-card button:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* Carrito flotante */
+    .cart-fab {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 200;
+      background: var(--primary); color: white; width: 60px; height: 60px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      border: none; transition: transform 0.2s;
+    }
+    .cart-fab:hover { transform: scale(1.1); }
+    .cart-count {
+      position: absolute; top: -5px; right: -5px; background: var(--success);
+      color: white; border-radius: 50%; width: 24px; height: 24px;
+      font-size: 0.8rem; display: flex; align-items: center; justify-content: center;
+      font-weight: bold;
+    }
+
+    /* Modal carrito */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 300; justify-content: center; align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white; border-radius: 16px; padding: 1.5rem; max-width: 500px;
+      width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+    .modal h2 { margin-bottom: 1rem; }
+    .cart-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.8rem 0; border-bottom: 1px solid #eee;
+    }
+    .cart-item .qty-controls { display: flex; align-items: center; gap: 0.5rem; }
+    .cart-item .qty-controls button {
+      width: 30px; height: 30px; border: 1px solid #ddd; border-radius: 50%;
+      background: white; cursor: pointer; font-size: 1rem; font-weight: bold;
+    }
+    .cart-item .qty-controls button:hover { background: #f0f0f0; }
+    .cart-empty { text-align: center; padding: 2rem; color: #888; }
+    .cart-total { font-size: 1.2rem; font-weight: bold; text-align: right; margin: 1rem 0; }
+    .cart-actions { display: flex; gap: 0.5rem; }
+    .cart-actions button {
+      flex: 1; padding: 0.8rem; border: none; border-radius: 8px;
+      font-weight: bold; cursor: pointer; font-size: 1rem;
+    }
+    .btn-comprar { background: var(--success); color: white; }
+    .btn-cancelar { background: #e0e0e0; color: #333; }
+    .btn-comprar:hover { opacity: 0.9; }
+    .btn-cancelar:hover { background: #d0d0d0; }
+
+    /* Modal checkout */
+    .checkout-option { display: block; width: 100%; padding: 1rem; margin: 0.5rem 0; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-size: 1rem; text-align: center; transition: all 0.2s; }
+    .checkout-option:hover, .checkout-option.selected { border-color: var(--primary); background: #fff0f0; }
+    .checkout-option .emoji { font-size: 1.5rem; display: block; margin-bottom: 0.3rem; }
+
+    .hidden { display: none; }
+
+    /* QR */
+    .qr-section { text-align: center; padding: 1rem; }
+    .qr-placeholder {
+      width: 200px; height: 200px; background: #eee; margin: 1rem auto;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 12px; font-size: 0.9rem; color: #666;
+    }
+    .qr-instructions { font-size: 0.9rem; color: #555; margin-top: 0.5rem; }
+
+    .spinner {
+      display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary); border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .estado-local { text-align: center; margin: 1rem 0; font-size: 0.9rem; color: #555; }
+
+    @media (max-width: 600px) {
+      .variantes { grid-template-columns: 1fr; }
+      .carousel-slide { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="local-nombre">Cargando...</h1>
+    <div class="header-info">
+      <span>📞 <a id="local-whatsapp" href="#">WhatsApp</a></span>
+      <span>📍 <span id="local-direccion">Cargando...</span></span>
+      <span>🕐 <span id="local-horario">Cargando...</span></span>
+    </div>
+  </div>
+
+  <!-- Carrusel -->
+  <div class="carousel-container" id="carousel-container">
+    <div class="no-photo" id="no-photo-msg">Sin fotos disponibles</div>
+    <div id="carousel-images" style="display:none;"></div>
+    <div class="carousel-dots" id="carousel-dots"></div>
+  </div>
+
+  <div class="container">
+    <h2 class="section-title">📍 Estado del Local</h2>
+    <p class="estado-local" id="estado-local">Cargando información del local...</p>
+
+    <h2 class="section-title">🍽️ Menú</h2>
+    <div id="productos-list"><div class="spinner" style="margin:2rem auto;"></div></div>
+  </div>
+
+  <!-- Carrito FAB -->
+  <button class="cart-fab" id="cart-fab" onclick="openCart()">
+    🛒
+    <span class="cart-count" id="cart-count">0</span>
+  </button>
+
+  <!-- Modal Carrito -->
+  <div class="modal-overlay" id="cart-modal">
+    <div class="modal">
+      <h2>🛒 Tu Carrito</h2>
+      <div id="cart-items"></div>
+      <div class="cart-total" id="cart-total">Total: S/ 0.00</div>
+      <div class="cart-actions">
+        <button class="btn-cancelar" onclick="closeCart()">Cancelar</button>
+        <button class="btn-comprar" id="btn-finalizar" onclick="showCheckout()">Finalizar elección</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Checkout -->
+  <div class="modal-overlay" id="checkout-modal">
+    <div class="modal">
+      <h2>📦 Tipo de entrega</h2>
+      <button class="checkout-option" onclick="selectDelivery('recojo_tienda')">
+        <span class="emoji">🏪</span> Recojo en tienda
+      </button>
+      <button class="checkout-option" onclick="selectDelivery('delivery')">
+        <span class="emoji">🛵</span> Delivery
+      </button>
+      <button class="checkout-option" onclick="selectDelivery('consumo_local')">
+        <span class="emoji">🍴</span> Consumo en local
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Pago QR -->
+  <div class="modal-overlay" id="payment-modal">
+    <div class="modal">
+      <h2>💳 Pago</h2>
+      <div class="qr-section">
+        <p>Escanea el código QR para pagar con tu billetera digital:</p>
+        <div class="qr-placeholder" id="qr-placeholder">
+          <span>🔲 QR de pago<br>(Configurar en cada local)</span>
+        </div>
+        <p class="qr-instructions">
+          Después de pagar, envía la captura de tu comprobante al WhatsApp del local<br>
+          <strong>Incluye en el mensaje: "Pedido #<span id="qr-pedido-num">---</span>"</strong>
+        </p>
+      </div>
+      <div style="text-align:center; margin-top:1rem;">
+        <p id="pedido-creado-msg" style="color:var(--success); font-weight:bold;"></p>
+        <button class="btn-cancelar" onclick="closePayment()" style="margin-top:0.5rem;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============ CONFIGURACIÓN (REEMPLAZAR CON TU SUPABASE KEY) ============
+    const SUPABASE_URL = 'https://pvmhgqmarshjkmbnclqj.supabase.co';
+    const SUPABASE_ANON_KEY = 'poner-tu-anon-key-aqui'; // ← REEMPLAZAR
+    const LOCAL_CONSTANT_ID = 'a0000000-0000-0000-0000-000000000001'; // Seed demo
+
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ============ ESTADO GLOBAL ============
+    let localData = null;
+    let carrito = [];
+    let deliveryType = null;
+    let pedidoActual = null;
+
+    // ============ CARGA INICIAL ============
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await loadLocalData();
+        renderCarousel();
+        await loadProductos();
+      } catch (e) {
+        console.error('Error cargando datos:', e);
+        document.getElementById('productos-list').innerHTML =
+          '<p style="color:red;text-align:center;">Error al cargar datos. Verifica la conexión a Supabase.</p>';
+      }
+    });
+
+    async function loadLocalData() {
+      const { data, error } = await supabase
+        .from('locales')
+        .select('*')
+        .eq('id', LOCAL_CONSTANT_ID)
+        .single();
+
+      if (error) throw error;
+      localData = data;
+
+      document.getElementById('local-nombre').textContent = data.nombre;
+      document.getElementById('local-whatsapp').href = `https://wa.me/${data.whatsapp}`;
+      document.getElementById('local-whatsapp').textContent = data.whatsapp;
+      document.getElementById('local-direccion').textContent = data.direccion || 'No especificada';
+      document.getElementById('local-horario').textContent =
+        `${data.hora_apertura?.slice(0,5) || '--:--'} - ${data.hora_cierre?.slice(0,5) || '--:--'}`;
+      document.getElementById('estado-local').textContent =
+        `📍 ${data.direccion || 'Ubicación no disponible'} | 🕐 Abierto hoy hasta las ${data.hora_cierre?.slice(0,5) || '--:--'}`;
+    }
+
+    function renderCarousel() {
+      const fotos = localData?.fotos || [];
+      const container = document.getElementById('carousel-images');
+      const dots = document.getElementById('carousel-dots');
+      const noPhoto = document.getElementById('no-photo-msg');
+
+      if (!fotos.length) {
+        noPhoto.style.display = 'flex';
+        container.style.display = 'none';
+        dots.innerHTML = '';
+        return;
+      }
+
+      noPhoto.style.display = 'none';
+      container.style.display = 'block';
+      container.innerHTML = fotos.map((url, i) =>
+        `<img class="carousel-slide${i === 0 ? ' active' : ''}" src="${url}" alt="Foto ${i+1}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22350%22><rect fill=%22%23eee%22 width=%22800%22 height=%22350%22/><text x=%22300%22 y=%22180%22 font-size=%2220%22 fill=%22%23999%22>Error al cargar</text></svg>'">`
+      ).join('');
+      dots.innerHTML = fotos.map((_, i) =>
+        `<span class="dot${i === 0 ? ' active' : ''}" onclick="goToSlide(${i})"></span>`
+      ).join('');
+
+      if (fotos.length >= 2) {
+        let idx = 0;
+        setInterval(() => {
+          idx = (idx + 1) % fotos.length;
+          goToSlide(idx);
+        }, 4000);
+      }
+    }
+
+    let currentSlide = 0;
+    function goToSlide(idx) {
+      document.querySelectorAll('.carousel-slide').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.dot').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.carousel-slide')[idx]?.classList.add('active');
+      document.querySelectorAll('.dot')[idx]?.classList.add('active');
+      currentSlide = idx;
+    }
+
+    async function loadProductos() {
+      const { data: productos, error } = await supabase
+        .rpc('productos_visibles_web', { p_local_id: LOCAL_CONSTANT_ID });
+
+      if (error) {
+        // Fallback: query directa
+        console.warn('RPC no disponible, usando fallback', error);
+        const { data: fallback } = await supabase
+          .from('productos')
+          .select(`
+            id, nombre, descripcion,
+            variantes!inner(id, nombre, precio, fotos, descripcion, stock)
+          `)
+          .eq('local_id', LOCAL_CONSTANT_ID)
+          .gt('variantes.stock', 0);
+
+        renderProductos(fallback || []);
+        return;
+      }
+
+      // Agrupar por producto desde RPC
+      const grouped = {};
+      for (const row of data) {
+        if (!grouped[row.producto_id]) {
+          grouped[row.producto_id] = { nombre: row.producto_nombre, descripcion: row.producto_descripcion, variantes: [] };
+        }
+        grouped[row.producto_id].variantes.push({
+          id: row.variante_id, nombre: row.variante_nombre,
+          descripcion: row.variante_descripcion || row.producto_descripcion,
+          precio: row.precio, fotos: row.fotos, stock: row.stock
+        });
+      }
+      renderProductos(Object.entries(grouped).map(([id, v]) => ({ id, ...v })));
+    }
+
+    function renderProductos(productos) {
+      const container = document.getElementById('productos-list');
+      if (!productos.length) {
+        container.innerHTML = '<p style="text-align:center;padding:2rem;">No hay productos disponibles actualmente.</p>';
+        return;
+      }
+
+      container.innerHTML = productos.map(p => `
+        <div class="producto">
+          <h3>${p.nombre}</h3>
+          ${p.descripcion ? `<p>${p.descripcion}</p>` : ''}
+          <div class="variantes">
+            ${(p.variantes || []).map(v => `
+              <div class="variante-card">
+                ${v.fotos?.[0]
+                  ? `<img src="${v.fotos[0]}" alt="${v.nombre}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22140%22><rect fill=%22%23eee%22 width=%22200%22 height=%22140%22/><text x=%2250%22 y=%2270%22 font-size=%2214%22 fill=%22%23999%22>Sin foto</text></svg>'">`
+                  : `<div style="width:100%;height:140px;background:#eee;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#999;">📷</div>`
+                }
+                <strong>${v.nombre}</strong>
+                <div class="precio">S/ ${parseFloat(v.precio).toFixed(2)}</div>
+                ${v.descripcion ? `<small>${v.descripcion}</small>` : ''}
+                <div class="stock">Stock: ${v.stock}</div>
+                <button onclick="addToCart('${p.id}','${v.id}','${p.nombre.replace(/'/g,"\\'")} - ${v.nombre.replace(/'/g,"\\'")}',${v.precio},${v.stock})"
+                  ${v.stock <= 0 ? 'disabled' : ''}>
+                  ${v.stock > 0 ? '➕ Agregar' : '😔 Agotado'}
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============ CARRITO ============
+    function addToCart(productoId, varianteId, nombre, precio, stockDisponible) {
+      const existente = carrito.find(item => item.varianteId === varianteId);
+      const cantActual = existente ? existente.cantidad : 0;
+
+      if (cantActual >= stockDisponible) {
+        alert('No hay más stock disponible de este producto.');
+        return;
+      }
+
+      if (existente) {
+        existente.cantidad++;
+      } else {
+        carrito.push({ productoId, varianteId, nombre, precio, cantidad: 1, stockDisponible });
+      }
+      updateCartUI();
+    }
+
+    function updateCartUI() {
+      const count = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+      document.getElementById('cart-count').textContent = count;
+      document.getElementById('cart-fab').style.display = count > 0 ? 'flex' : 'none';
+
+      const itemsDiv = document.getElementById('cart-items');
+      if (!carrito.length) {
+        itemsDiv.innerHTML = '<div class="cart-empty">🛒 Tu carrito está vacío</div>';
+        document.getElementById('cart-total').textContent = 'Total: S/ 0.00';
+        document.getElementById('btn-finalizar').disabled = true;
+        return;
+      }
+
+      const total = carrito.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+      itemsDiv.innerHTML = carrito.map((item, i) => `
+        <div class="cart-item">
+          <div>
+            <strong>${item.nombre}</strong><br>
+            <small>S/ ${item.precio.toFixed(2)} c/u</small>
+          </div>
+          <div class="qty-controls">
+            <button onclick="changeQty(${i}, -1)">−</button>
+            <span>${item.cantidad}</span>
+            <button onclick="changeQty(${i}, 1)">+</button>
+            <span style="margin-left:0.5rem;font-weight:bold;">S/ ${(item.precio * item.cantidad).toFixed(2)}</span>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('cart-total').textContent = `Total: S/ ${total.toFixed(2)}`;
+      document.getElementById('btn-finalizar').disabled = false;
+    }
+
+    function changeQty(idx, delta) {
+      const item = carrito[idx];
+      const newQty = item.cantidad + delta;
+      if (newQty <= 0) {
+        carrito.splice(idx, 1);
+      } else if (newQty <= item.stockDisponible) {
+        item.cantidad = newQty;
+      } else {
+        alert('Stock máximo disponible: ' + item.stockDisponible);
+      }
+      updateCartUI();
+    }
+
+    function openCart() { document.getElementById('cart-modal').classList.add('open'); }
+    function closeCart() { document.getElementById('cart-modal').classList.remove('open'); }
+
+    // ============ CHECKOUT ============
+    function showCheckout() {
+      closeCart();
+      document.getElementById('checkout-modal').classList.add('open');
+    }
+
+    async function selectDelivery(tipo) {
+      deliveryType = tipo;
+      document.getElementById('checkout-modal').classList.remove('open');
+
+      try {
+        // Registrar pedido en Supabase
+        const items = carrito.map(item => ({
+          variante_id: item.varianteId,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio
+        }));
+        const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+        const { data, error } = await supabase.rpc('registrar_pedido_web', {
+          p_local_id: LOCAL_CONSTANT_ID,
+          p_cliente_nombre: 'Cliente Web',
+          p_cliente_whatsapp: '',
+          p_cliente_latitud: null,
+          p_cliente_longitud: null,
+          p_tipo_entrega: tipo,
+          p_items: JSON.stringify(items),
+          p_total: total
+        });
+
+        if (error) {
+          console.error('Error al registrar pedido:', error);
+          // Fallback: insert manual
+          const { data: pedido, error: e2 } = await supabase
+            .from('pedidos')
+            .insert({
+              local_id: LOCAL_CONSTANT_ID,
+              cliente_nombre: 'Cliente Web',
+              tipo_entrega: tipo,
+              estado: 'pendiente',
+              total: total
+            })
+            .select()
+            .single();
+
+          if (e2) throw e2;
+          pedidoActual = pedido;
+
+          for (const item of items) {
+            await supabase.from('detalle_pedidos').insert({
+              pedido_id: pedido.id,
+              variante_id: item.variante_id,
+              cantidad: item.cantidad,
+              precio_unitario: item.precio_unitario
+            });
+            await supabase.rpc('descontar_stock', {
+              p_variante_id: item.variante_id,
+              p_cantidad: item.cantidad
+            });
+          }
+        } else {
+          pedidoActual = data;
+        }
+
+        // Mostrar QR / pago
+        document.getElementById('qr-pedido-num').textContent = pedidoActual.id?.slice(0, 8) || '---';
+        document.getElementById('pedido-creado-msg').textContent =
+          `✅ Pedido #${pedidoActual.id?.slice(0, 8) || '---'} creado exitosamente`;
+        document.getElementById('payment-modal').classList.add('open');
+
+        // Limpiar carrito
+        carrito = [];
+        updateCartUI();
+
+      } catch (e) {
+        console.error('Error en checkout:', e);
+        alert('Error al procesar el pedido. Intenta de nuevo.');
+      }
+    }
+
+    function closePayment() {
+      document.getElementById('payment-modal').classList.remove('open');
+    }
+  </script>
+</body>
+</html>
