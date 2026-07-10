@@ -227,7 +227,8 @@
     // ============ CONFIGURACIÓN (REEMPLAZAR CON TU SUPABASE KEY) ============
     const SUPABASE_URL = 'https://pvmhgqmarshjkmbnclqj.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2bWhncW1hcnNoamttYm5jbHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNTI0NjYsImV4cCI6MjA5NzgyODQ2Nn0.b6DduVrDULFAFi5uBQ6GQnzcyNRZwm4iM5rykgqLRrU';
-    const LOCAL_CONSTANT_ID = 'a0000000-0000-0000-0000-000000000001'; // Seed demo
+    const _urlParams = new URLSearchParams(window.location.search);
+    const LOCAL_CONSTANT_ID = _urlParams.get('negocio') || 'a0000000-0000-0000-0000-000000000001'; // fallback: demo
 
     const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -245,8 +246,9 @@
         await loadProductos();
       } catch (e) {
         console.error('Error cargando datos:', e);
+        document.getElementById('local-nombre').textContent = 'Negocio no encontrado';
         document.getElementById('productos-list').innerHTML =
-          '<p style="color:red;text-align:center;">Error al cargar datos. Verifica la conexión a Supabase.</p>';
+          '<p style="color:red;text-align:center;">No se encontró este negocio. Verifica el enlace o contacta al local.</p>';
       }
     });
 
