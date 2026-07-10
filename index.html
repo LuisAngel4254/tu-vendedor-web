@@ -147,7 +147,7 @@
     <h1 id="local-nombre">Cargando...</h1>
     <div class="header-info">
       <span>📞 <a id="local-whatsapp" href="#">WhatsApp</a></span>
-      <span>📍 <span id="local-direccion">Cargando...</span></span>
+      <span>📍 <span id="local-direccion">Cargando...</span> <a id="local-como-llegar" href="#" target="_blank" style="white-space:nowrap;">🧭 Cómo llegar</a></span>
       <span>🕐 <span id="local-horario">Cargando...</span></span>
     </div>
   </div>
@@ -266,6 +266,12 @@
       document.getElementById('local-whatsapp').href = `https://wa.me/${data.whatsapp}`;
       document.getElementById('local-whatsapp').textContent = data.whatsapp;
       document.getElementById('local-direccion').textContent = data.direccion || 'No especificada';
+      if (data.latitud && data.longitud) {
+        document.getElementById('local-como-llegar').href =
+          `https://www.google.com/maps/search/?api=1&query=${data.latitud},${data.longitud}`;
+      } else {
+        document.getElementById('local-como-llegar').style.display = 'none';
+      }
       document.getElementById('local-horario').textContent =
         `${data.hora_apertura?.slice(0,5) || '--:--'} - ${data.hora_cierre?.slice(0,5) || '--:--'}`;
       document.getElementById('estado-local').textContent =
