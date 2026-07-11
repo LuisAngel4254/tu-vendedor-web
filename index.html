@@ -39,7 +39,12 @@
     .dot.active { background: var(--primary); }
     .no-photo { height: 250px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #666; }
 
-    .container { max-width: 900px; margin: 1rem auto; padding: 0 1rem; }
+    .container {
+      max-width: 900px; margin: 1rem auto; padding: 1rem 1.25rem;
+      background: rgba(255,255,255,0.93);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
     .section-title { font-size: 1.3rem; margin: 1.5rem 0 1rem; color: var(--primary-dark); border-bottom: 2px solid var(--accent); padding-bottom: 0.3rem; }
 
     /* Productos */
@@ -288,8 +293,18 @@
         noPhoto.style.display = 'flex';
         container.style.display = 'none';
         dots.innerHTML = '';
+        document.body.style.backgroundImage = '';
         return;
       }
+
+      // Fondo de pantalla: usa la primera foto, fija, con blur + capa
+      // oscura semitransparente para que el texto siga siendo legible
+      // sin importar qué tan clara u oscura sea la foto que suba cada local.
+      document.body.style.backgroundImage =
+        `linear-gradient(rgba(20,20,20,0.55), rgba(20,20,20,0.65)), url('${fotos[0]}')`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
 
       noPhoto.style.display = 'none';
       container.style.display = 'block';
