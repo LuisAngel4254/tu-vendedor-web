@@ -235,7 +235,7 @@
     const _urlParams = new URLSearchParams(window.location.search);
     const LOCAL_CONSTANT_ID = _urlParams.get('negocio') || 'a0000000-0000-0000-0000-000000000001'; // fallback: demo
 
-    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ============ ESTADO GLOBAL ============
     let localData = null;
@@ -258,7 +258,7 @@
     });
 
     async function loadLocalData() {
-      const { data, error } = await supabase
+      const { data, error } = await _supabase
         .from('locales')
         .select('*')
         .eq('id', LOCAL_CONSTANT_ID)
@@ -334,13 +334,13 @@
     }
 
     async function loadProductos() {
-      const { data: productos, error } = await supabase
+      const { data: productos, error } = await _supabase
         .rpc('productos_visibles_web', { p_local_id: LOCAL_CONSTANT_ID });
 
       if (error) {
         // Fallback: query directa
         console.warn('RPC no disponible, usando fallback', error);
-        const { data: fallback } = await supabase
+        const { data: fallback } = await _supabase
           .from('productos')
           .select(`
             id, nombre, descripcion,
@@ -486,7 +486,7 @@
         }));
         const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
 
-        const { data, error } = await supabase.rpc('registrar_pedido_web', {
+        const { data, error } = await _supabase.rpc('registrar_pedido_web', {
           p_local_id: LOCAL_CONSTANT_ID,
           p_cliente_nombre: 'Cliente Web',
           p_cliente_whatsapp: '',
@@ -500,7 +500,7 @@
         if (error) {
           console.error('Error al registrar pedido:', error);
           // Fallback: insert manual
-          const { data: pedido, error: e2 } = await supabase
+          const { data: pedido, error: e2 } = await _supabase
             .from('pedidos')
             .insert({
               local_id: LOCAL_CONSTANT_ID,
@@ -516,13 +516,13 @@
           pedidoActual = pedido;
 
           for (const item of items) {
-            await supabase.from('detalle_pedidos').insert({
+            await _supabase.from('detalle_pedidos').insert({
               pedido_id: pedido.id,
               variante_id: item.variante_id,
               cantidad: item.cantidad,
               precio_unitario: item.precio_unitario
             });
-            await supabase.rpc('descontar_stock', {
+            await _supabase.rpc('descontar_stock', {
               p_variante_id: item.variante_id,
               p_cantidad: item.cantidad
             });
