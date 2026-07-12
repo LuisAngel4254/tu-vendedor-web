@@ -248,12 +248,20 @@
       try {
         await loadLocalData();
         renderCarousel();
+      } catch (e) {
+        console.error('Error cargando datos del negocio:', e);
+        document.getElementById('local-nombre').textContent = 'Negocio no encontrado';
+        document.getElementById('estado-local').textContent = 'No se encontró este negocio. Verifica el enlace o contacta al local.';
+        document.getElementById('productos-list').innerHTML = '';
+        return; // sin negocio válido, no tiene sentido intentar cargar productos
+      }
+
+      try {
         await loadProductos();
       } catch (e) {
-        console.error('Error cargando datos:', e);
-        document.getElementById('local-nombre').textContent = 'Negocio no encontrado';
+        console.error('Error cargando productos:', e);
         document.getElementById('productos-list').innerHTML =
-          '<p style="color:red;text-align:center;">No se encontró este negocio. Verifica el enlace o contacta al local.</p>';
+          '<p style="color:red;text-align:center;">No se pudo cargar el menú. Intenta recargar la página.</p>';
       }
     });
 
