@@ -504,7 +504,7 @@
           p_cliente_latitud: null,
           p_cliente_longitud: null,
           p_tipo_entrega: tipo,
-          p_items: JSON.stringify(items),
+          p_items: items,
           p_total: total
         });
 
@@ -554,7 +554,7 @@
 
       } catch (e) {
         console.error('Error en checkout:', e);
-        alert('Error al procesar el pedido. Intenta de nuevo.');
+        alert('Error al procesar el pedido.\n\nDetalle técnico: ' + (e.message || JSON.stringify(e)));
       }
     }
 
