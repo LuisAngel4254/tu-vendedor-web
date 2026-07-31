@@ -261,7 +261,7 @@
       } catch (e) {
         console.error('Error cargando productos:', e);
         document.getElementById('productos-list').innerHTML =
-          '<p style="color:red;text-align:center;">No se pudo cargar el menú. Intenta recargar la página.</p>';
+          `<p style="color:red;text-align:center;">No se pudo cargar el menú.<br><small>Detalle técnico: ${e.message || e}</small></p>`;
       }
     });
 
@@ -345,10 +345,10 @@
       const { data: productos, error } = await _supabase
         .rpc('productos_visibles_web', { p_local_id: LOCAL_CONSTANT_ID });
 
-      if (error) {
+      if (error || !productos) {
         // Fallback: query directa
-        console.warn('RPC no disponible, usando fallback', error);
-        const { data: fallback } = await _supabase
+        console.warn('RPC no disponible, usando fallback. Error real:', error);
+        const { data: fallback, error: errorFallback } = await _supabase
           .from('productos')
           .select(`
             id, nombre, descripcion,
@@ -357,13 +357,16 @@
           .eq('local_id', LOCAL_CONSTANT_ID)
           .gt('variantes.stock', 0);
 
+        if (errorFallback) {
+          console.error('Fallback tambien fallo:', errorFallback);
+        }
         renderProductos(fallback || []);
         return;
       }
 
       // Agrupar por producto desde RPC
       const grouped = {};
-      for (const row of data) {
+      for (const row of productos) {
         if (!grouped[row.producto_id]) {
           grouped[row.producto_id] = { nombre: row.producto_nombre, descripcion: row.producto_descripcion, variantes: [] };
         }
