@@ -216,13 +216,19 @@
         <div class="qr-placeholder" id="qr-placeholder">
           <span>🔲 QR de pago<br>(Configurar en cada local)</span>
         </div>
+        <img id="qr-real" src="" alt="QR de pago" style="display:none; max-width:220px; margin:0 auto; border-radius:8px;">
         <p class="qr-instructions">
           Después de pagar, envía la captura de tu comprobante al WhatsApp del local<br>
           <strong>Incluye en el mensaje: "Pedido #<span id="qr-pedido-num">---</span>"</strong>
         </p>
+        <p style="background:#fff3cd; color:#856404; padding:0.6rem; border-radius:8px; font-size:0.85rem; margin-top:0.8rem;">
+          ⚠️ <strong>No cierres esta pestaña.</strong> Puedes minimizarla — aquí mismo te avisaremos
+          cuando el local confirme tu pago y empiece a preparar tu pedido.
+        </p>
       </div>
       <div style="text-align:center; margin-top:1rem;">
         <p id="pedido-creado-msg" style="color:var(--success); font-weight:bold;"></p>
+        <p id="pedido-estado-msg" style="color:var(--primary); font-weight:bold;"></p>
         <button class="btn-cancelar" onclick="closePayment()" style="margin-top:0.5rem;">Cerrar</button>
       </div>
     </div>
@@ -539,14 +545,51 @@
             });
           }
         } else {
-          pedidoActual = data;
+          // La función RPC devuelve {success, pedido_id}, no el registro completo
+          pedidoActual = { id: data.pedido_id };
+        }
+
+        // Mostrar QR real del local (o el placeholder si aún no subió uno)
+        const qrImg = document.getElementById('qr-real');
+        const qrPlaceholder = document.getElementById('qr-placeholder');
+        if (localData?.qr_pago_url) {
+          qrImg.src = localData.qr_pago_url;
+          qrImg.style.display = 'block';
+          qrPlaceholder.style.display = 'none';
+        } else {
+          qrImg.style.display = 'none';
+          qrPlaceholder.style.display = 'block';
         }
 
         // Mostrar QR / pago
         document.getElementById('qr-pedido-num').textContent = pedidoActual.id?.slice(0, 8) || '---';
         document.getElementById('pedido-creado-msg').textContent =
           `✅ Pedido #${pedidoActual.id?.slice(0, 8) || '---'} creado exitosamente`;
+        document.getElementById('pedido-estado-msg').textContent = '';
         document.getElementById('payment-modal').classList.add('open');
+
+        // Suscripción en tiempo real: mientras esta pestaña siga abierta
+        // (aunque minimizada), avisa apenas el local confirme el pago.
+        if (pedidoActual.id) {
+          _supabase
+            .channel(`pedido-${pedidoActual.id}`)
+            .on('postgres_changes', {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'pedidos',
+              filter: `id=eq.${pedidoActual.id}`
+            }, (payload) => {
+              const nuevoEstado = payload.new.estado;
+              if (nuevoEstado === 'preparando') {
+                document.getElementById('pedido-estado-msg').textContent =
+                  '👨‍🍳 ¡Tu pedido está en proceso!';
+              } else if (nuevoEstado === 'listo') {
+                document.getElementById('pedido-estado-msg').textContent =
+                  '🎉 ¡Tu pedido está listo!';
+              }
+            })
+            .subscribe();
+        }
 
         // Limpiar carrito
         carrito = [];
