@@ -153,6 +153,8 @@
     <div class="header-info">
       <span>📞 <a id="local-whatsapp" href="#">WhatsApp</a></span>
       <span>📍 <span id="local-direccion">Cargando...</span> <a id="local-como-llegar" href="#" target="_blank" style="white-space:nowrap;">🧭 Cómo llegar</a></span>
+      <span style="flex-basis:100%; text-align:center;">🔗 <a id="local-link" href="#" style="word-break:break-all;">...</a>
+        <button id="btn-copiar-link" type="button" style="margin-left:.4rem; padding:.15rem .6rem; border:1px solid #fff; background:transparent; color:#fff; border-radius:12px; font-size:.8rem; cursor:pointer;">Copiar</button></span>
       <span>🕐 <span id="local-horario">Cargando...</span></span>
     </div>
   </div>
@@ -285,6 +287,22 @@
       document.getElementById('local-whatsapp').href = `https://wa.me/${data.whatsapp}`;
       document.getElementById('local-whatsapp').textContent = data.whatsapp;
       document.getElementById('local-direccion').textContent = data.direccion || 'No especificada';
+
+      // Enlace de visita de este local (el mismo que se comparte con los clientes)
+      const linkLocal = `${location.origin}${location.pathname}?negocio=${LOCAL_CONSTANT_ID}`;
+      const linkEl = document.getElementById('local-link');
+      linkEl.href = linkLocal;
+      linkEl.textContent = `${location.host}${location.pathname}?negocio=${String(LOCAL_CONSTANT_ID).slice(0, 8)}…`;
+      document.getElementById('btn-copiar-link').onclick = async (ev) => {
+        const btn = ev.currentTarget;
+        try {
+          await navigator.clipboard.writeText(linkLocal);
+          btn.textContent = '¡Copiado!';
+        } catch (_) {
+          window.prompt('Copia este enlace:', linkLocal);
+        }
+        setTimeout(() => { btn.textContent = 'Copiar'; }, 2000);
+      };
       if (data.latitud && data.longitud) {
         document.getElementById('local-como-llegar').href =
           `https://www.google.com/maps/search/?api=1&query=${data.latitud},${data.longitud}`;
